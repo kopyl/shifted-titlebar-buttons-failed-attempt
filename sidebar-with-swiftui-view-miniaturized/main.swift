@@ -108,6 +108,7 @@ struct AppearanceSettingsView: View {
             Text("Appearance Settings")
         }
         .frame(minWidth: 400, minHeight: 500)
+        
     }
 }
 
@@ -150,38 +151,66 @@ class SplitViewController: NSSplitViewController, SidebarSelectionDelegate {
 }
 
 var mainWindow: NSWindow?
+var mainWindowController: SettingsWindowController?
 
 func addPaddingToWindowButtons(leading: CGFloat, top: CGFloat) {
-    DispatchQueue.main.async {
-        mainWindow?.standardWindowButton(.miniaturizeButton)?.frame.origin.y -= top
-        mainWindow?.standardWindowButton(.closeButton)?.frame.origin.y -= top
-        mainWindow?.standardWindowButton(.zoomButton)?.frame.origin.y -= top
+    mainWindow?.standardWindowButton(.miniaturizeButton)?.frame.origin.y -= top
+    mainWindow?.standardWindowButton(.closeButton)?.frame.origin.y -= top
+    mainWindow?.standardWindowButton(.zoomButton)?.frame.origin.y -= top
+    
+    mainWindow?.standardWindowButton(.miniaturizeButton)?.frame.origin.x += leading
+    mainWindow?.standardWindowButton(.closeButton)?.frame.origin.x += leading
+    mainWindow?.standardWindowButton(.zoomButton)?.frame.origin.x += leading
+    
+    let buttonContainer = mainWindow?.standardWindowButton(.closeButton)?.superview
+    
+    for subview in buttonContainer?.subviews ?? [] where subview is NSTextField {
+        subview.frame.origin.y -= top
+    }
+}
+
+class SettingsWindowController: NSWindowController {
+    override init(window: NSWindow?) {
+        super.init(window: window)
         
-        mainWindow?.standardWindowButton(.miniaturizeButton)?.frame.origin.x += leading
-        mainWindow?.standardWindowButton(.closeButton)?.frame.origin.x += leading
-        mainWindow?.standardWindowButton(.zoomButton)?.frame.origin.x += leading
-        
-        let buttonContainer = mainWindow?.standardWindowButton(.closeButton)?.superview
-        
-        for subview in buttonContainer?.subviews ?? [] where subview is NSTextField {
-            subview.frame.origin.y -= top
-        }
+        NotificationCenter.default.addObserver(
+                self,
+           selector: #selector(windowDidResize(_:)),
+           name: NSWindow.didResizeNotification,
+           object: mainWindow
+        )
+    }
+    
+    required init?(coder: NSCoder) {
+            fatalError("init(coder:) has not been implemented")
+    }
+    
+    @objc func windowDidResize(_ notification: Notification) {
+            addPaddingToWindowButtons(leading: 12, top: 12)
+    }
+    
+    deinit {
+            NotificationCenter.default.removeObserver(
+                self,
+            name: NSWindow.didResizeNotification,
+            object: self.window
+        )
     }
 }
 
 func createMainWindow() {
     mainWindow = NSWindow(
         contentRect: NSRect(x: 0, y: 0, width: WindowConfig.width, height: WindowConfig.height),
-        styleMask: [.titled, .closable],
+        styleMask: [.titled, .closable, .fullSizeContentView],
         backing: .buffered, defer: false
     )
     mainWindow?.center()
     mainWindow?.contentViewController = SplitViewController()
     
-    addPaddingToWindowButtons(leading: 12, top: 12)
+    mainWindow?.titlebarAppearsTransparent = true
+    mainWindow?.titleVisibility = .hidden
     
-    let _ = NSWindowController(window: mainWindow)
-    
+    mainWindowController = SettingsWindowController(window: mainWindow)
     mainWindow?.makeKeyAndOrderFront(nil)
 }
 
